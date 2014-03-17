@@ -1,6 +1,6 @@
 <?php
 
-define('LD_DEBUG', true);
+define('LD_DEBUG', false);
 define('LD_CONFIG_FILE', dirname(__FILE__) . '/config.php');
 define('LD_COOKIEJAR', dirname(__FILE__).'/cookie.jar');
 
@@ -23,6 +23,20 @@ curl_setopt($ch, CURLOPT_COOKIEJAR, LD_COOKIEJAR);
 curl_setopt($ch, CURLOPT_COOKIEFILE, LD_COOKIEJAR);
 #curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
+p('Pruning casts list based on output directory');
+$glob = glob($directory . '/*.mp4');
+$existing = array();
+if ($glob) {
+  foreach ($glob as $file) {
+    $matches = array();
+    if (preg_match('!' . $directory . '/[0-9]+_(.*).mp4!', $file, $matches)) {
+      $existing[] = $matches[1];
+    }
+  }
+} else {
+  p('Not downloads found');
+}
+
 $authed = false;
 if (file_exists(LD_COOKIEJAR)) {
   p('Checking if our previous session is still active ... ');
@@ -39,6 +53,11 @@ if (!$authed) {
 p('Grab list from /all');
 $casts = grab_all();
 if ($casts === false) die('Failed to grab all casts'.PHP_EOL);
+
+if (!count(array_diff($existing, $casts))) {
+  p('Nothing new to download, dying');
+  die;
+}
 
 $padding = 4;
 $lesson_ids = array();

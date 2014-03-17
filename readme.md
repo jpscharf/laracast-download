@@ -26,7 +26,7 @@ PHP with curl and command line wget
 - ~~Get movie lists~~
 - ~~Get movie download link~~
 - ~~Download~~
-- Download only new videos
+- ~~Download only new videos~~
 - Add tag options
 
 ### Warnings
@@ -44,4 +44,4 @@ I have a 16 month old (as of project creation date) and do not
 get a lot of time to sit in front of a traditional screen.
 
 As a new member I came in and there were 132 videos at the time.
-I got stick of downloading them all manually.
+I got sick of downloading them all manually.
