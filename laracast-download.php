@@ -1,5 +1,6 @@
 <?php
 
+set_time_limit(0); // infinity
 define('LD_DEBUG', false);
 define('LD_CONFIG_FILE', dirname(__FILE__) . '/config.php');
 define('LD_COOKIEJAR', dirname(__FILE__).'/cookie.jar');
@@ -18,10 +19,12 @@ p('App Start');
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36');
 curl_setopt($ch, CURLOPT_HEADER, 1);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0); // no timeout for connection
+curl_setopt($ch, CURLOPT_TIMEOUT, 0); // no timeout for curl
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_COOKIEJAR, LD_COOKIEJAR);
 curl_setopt($ch, CURLOPT_COOKIEFILE, LD_COOKIEJAR);
-#curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+// curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
 p('Pruning casts list based on output directory');
 $glob = glob($directory . '/*.mp4');
@@ -36,7 +39,6 @@ if ($glob) {
 } else {
   p('Not downloads found');
 }
-
 $authed = false;
 if (file_exists(LD_COOKIEJAR)) {
   p('Checking if our previous session is still active ... ');
@@ -54,7 +56,7 @@ p('Grab list from /all');
 $casts = grab_all();
 if ($casts === false) die('Failed to grab all casts'.PHP_EOL);
 
-if (!count(array_diff($existing, $casts))) {
+if (!count(array_diff($casts, $existing))) {
   p('Nothing new to download, dying');
   die;
 }
@@ -165,6 +167,7 @@ function grab_all() {
   global $ch;
   p('Calling /all ... ', 1);
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/all');
+  curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
@@ -176,7 +179,8 @@ function grab_all() {
   if (preg_match('!^HTTP/1.1 200 OK!', $response)) {
     p('Found 200 OK, checking cast links');
     $matches=array();
-    if (preg_match_all('!https://laracasts.com/lessons/([^"]+)" !', $response, $matches)) {
+    $yup = preg_match_all('!https://laracasts.com/lessons/([^"]+)!', $response, $matches);
+    if ($yup) {
       $casts=array();
       foreach($matches[1] as $i => $match) {
         if ($match<>'complete') $casts[]=$match;
@@ -210,7 +214,7 @@ function get_lesson_id($cast) {
   if (preg_match('!^HTTP/1.1 200 OK!', $response)) {
     p('Found 200 OK, checking cast links');
     $matches=array();
-    if (preg_match('!/downloads/([0-9]+)!', $response, $matches)) {
+    if (preg_match('!/downloads/([0-9a-z\?\=]+)!', $response, $matches)) {
       $lesson_id = $matches[1];
       p('Lesson ID for cast=' . $cast .' is ' . $lesson_id);
       return $lesson_id;
@@ -261,7 +265,7 @@ function download_from_vimeo($out_file, $url) {
  * Outputs message based on debug setting
  */
 function p ($message, $nonewline = 0) {
-  print $message . ($nonewline ? '' : PHP_EOL);
+  print $message . ($nonewline ? '' : '<br><br>'.PHP_EOL);
 }
 function dump_response_to_file($response) {
   if (!LD_DEBUG) return;
