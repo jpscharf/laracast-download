@@ -24,7 +24,7 @@ curl_setopt($ch, CURLOPT_TIMEOUT, 0); // no timeout for curl
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_COOKIEJAR, LD_COOKIEJAR);
 curl_setopt($ch, CURLOPT_COOKIEFILE, LD_COOKIEJAR);
-// curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
 p('Pruning casts list based on output directory');
 $glob = glob($directory . '/*.mp4');
@@ -56,32 +56,38 @@ p('Grab list from /all');
 $casts = grab_all();
 if ($casts === false) die('Failed to grab all casts'.PHP_EOL);
 
-if (!count(array_diff($casts, $existing))) {
+$count = count(array_diff($casts, $existing));
+if (!$count) {
   p('Nothing new to download, dying');
   die;
 }
+p('Found ' . $count . ' casts');
 
 $padding = 4;
 $lesson_ids = array();
 foreach ($casts as $cast) {
+  echo "<br><br><br><br><br><br><br>";
   $lesson_id = get_lesson_id($cast);
   if ($lesson_id === false) {
     p('Failed to get lesson id for cast=' . $cast);
     continue;
   }
-  $out_file = $directory . '/' . str_pad($lesson_id, $padding, '0', STR_PAD_LEFT) . '_' . $cast . '.mp4';
+  $out_file = $directory . '/' . str_pad($lesson_id, $padding, '0', STR_PAD_LEFT) . '_' . str_replace('/', '_', $cast) . '.mp4';
   if (file_exists($out_file)) {
     p('File exists for out_file=' . $out_file . ', skipping');
     continue;
   }
-  $url = get_download_url($lesson_id);
+  p('Checking first url before redirection : https://laracasts.com/downloads/' . $lesson_id);
+  $url = get_download_url('https://laracasts.com/downloads/' . $lesson_id);
   if ($url === false) {
     p('Could not get download url for lession_id=' . $lession_id);
+    continue;
   }
   p('Downloading ' . $url . ' to ' . $out_file);
   $result = download_from_vimeo($out_file, $url);
   if ($result===false) {
     p('Failed to get url=' . $url);
+    continue;
   }
   p('Success, got lesson_id=' . $lesson_id . ', cast=' . $cast);
 }
@@ -97,7 +103,6 @@ function do_auth($email, $password) {
   // Call login to start session
   p('Calling /login', 1);
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/login');
-  #curl_setopt($ch, CURLOPT_URL, 'http://localhost:8000/user/login');
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
@@ -109,7 +114,6 @@ function do_auth($email, $password) {
   // Post login
   p('Posting to /session', 1);
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/sessions');
-  #curl_setopt($ch, CURLOPT_URL, 'http://localhost:8000/user/login');
   curl_setopt($ch, CURLOPT_POST, 1);
   curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(array('email' => $email, 'password' => $password, 'remember' => 'on')));
   $response=curl_exec($ch);
@@ -179,11 +183,16 @@ function grab_all() {
   if (preg_match('!^HTTP/1.1 200 OK!', $response)) {
     p('Found 200 OK, checking cast links');
     $matches=array();
-    $yup = preg_match_all('!https://laracasts.com/lessons/([^"]+)!', $response, $matches);
-    if ($yup) {
+    $yup = preg_match_all('!https://laracasts.com/(lessons/[^"]+)!', $response, $matches);
+    $yup2 = preg_match_all('!https://laracasts.com/(series/[^"]+)!', $response, $matches2);
+
+    if ($yup && $yup2) {
       $casts=array();
       foreach($matches[1] as $i => $match) {
-        if ($match<>'complete') $casts[]=$match;
+        // if ($match<>'lessons/complete') $casts[]=$match;
+      }
+      foreach($matches2[1] as $i => $match) {
+        if (strpos($match, 'episodes')!==false) $casts[]=$match;
       }
       $count=count($casts);
       if (!$count) {
@@ -197,12 +206,12 @@ function grab_all() {
   return false;
 }
 /*
- * Get download url from /lessons/<cast>
+ * Get download url from /lessons/ or /series/
  */
 function get_lesson_id($cast) {
   global $ch;
-  p('Calling /lessons/' . $cast . ' ... ', 1);
-  curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/lessons/' . $cast);
+  p('Calling ' . $cast . ' ... ', 1);
+  curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/' . $cast);
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
@@ -227,8 +236,8 @@ function get_lesson_id($cast) {
  */
 function get_download_url($lesson_id) {
   global $ch;
-  p('Calling /downloads/' . $lesson_id . ' ... ', 1);
-  curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/downloads/' . $lesson_id);
+  p('Calling ' . $lesson_id . ' ... ', 1);
+  curl_setopt($ch, CURLOPT_URL, $lesson_id);
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
@@ -238,7 +247,7 @@ function get_download_url($lesson_id) {
   p('success');
   dump_response_to_file($response);
   if (preg_match('!^HTTP/1.1 302 Found!', $response)) {
-    p('Found 302 Found, checking for Location');
+    p('Found 302 Found, checking for Location again');
     $matches=array();
     if (preg_match('!Location: (.*)!', $response, $matches)) {
       $download_url = $matches[1];
