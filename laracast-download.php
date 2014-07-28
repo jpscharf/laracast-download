@@ -4,6 +4,8 @@ set_time_limit(0); // infinity
 define('LD_DEBUG', false);
 define('LD_CONFIG_FILE', dirname(__FILE__) . '/config.php');
 define('LD_COOKIEJAR', dirname(__FILE__).'/cookie.jar');
+define('LD_CLI', true);
+define('LD_NL', LD_CLI ? PHP_EOL : '<br>');
 
 if (!file_exists(LD_CONFIG_FILE)) die('No config file found.'.PHP_EOL);
 
@@ -66,21 +68,27 @@ p('Found ' . $count . ' casts');
 $padding = 4;
 $lesson_ids = array();
 foreach ($casts as $cast) {
-  echo "<br><br><br><br><br><br><br>";
-  $lesson_id = get_lesson_id($cast);
+  echo LD_NL . LD_NL;
+  $lesson = get_lesson_id($cast);
+  if (substr_count($lesson, '?')) {
+    $lesson_id = substr($lesson, 0, strpos($lesson, '?'));
+  } else {
+    $lesson_id = $lesson;
+  }
   if ($lesson_id === false) {
     p('Failed to get lesson id for cast=' . $cast);
     continue;
   }
-  $out_file = $directory . '/' . str_pad($lesson_id, $padding, '0', STR_PAD_LEFT) . '_' . str_replace('/', '_', $cast) . '.mp4';
+  $out_name = str_replace(array('series/', 'lessons/'), array('', ''), $cast);
+  $out_file = $directory . '/' . str_pad($lesson_id, $padding, '0', STR_PAD_LEFT) . '_' . str_replace('/', '_', $out_name) . '.mp4';
   if (file_exists($out_file)) {
     p('File exists for out_file=' . $out_file . ', skipping');
     continue;
   }
-  p('Checking first url before redirection : https://laracasts.com/downloads/' . $lesson_id);
-  $url = get_download_url('https://laracasts.com/downloads/' . $lesson_id);
+  p('Checking first url before redirection : https://laracasts.com/downloads/' . $lesson);
+  $url = get_download_url('https://laracasts.com/downloads/' . $lesson);
   if ($url === false) {
-    p('Could not get download url for lession_id=' . $lession_id);
+    p('Could not get download url for lession_id=' . $lesson_id);
     continue;
   }
   p('Downloading ' . $url . ' to ' . $out_file);
@@ -106,10 +114,10 @@ function do_auth($email, $password) {
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
-    p('failed');
+    p(' failed');
     return false;
   }
-  p('success');
+  p(' success');
 
   // Post login
   p('Posting to /session', 1);
@@ -119,11 +127,11 @@ function do_auth($email, $password) {
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
-    p('failed');
+    p(' failed');
     return false;
   }
   if (preg_match('!^HTTP/1.1 302 Found!', $response)) {
-    p('success, got 302 from /sessions, looking for Location');
+    p(' success, got 302 from /sessions, looking for Location');
     $matches = array();
     if (preg_match('/^Location: (.*)/', $response, $matches)) {
       $Location = $matches[1];
@@ -151,10 +159,10 @@ function check_session($email) {
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
-    p('failed');
+    p(' failed');
     return false;
   }
-  p('success');
+  p(' success');
   dump_response_to_file($response);
   if (preg_match('!^HTTP/1.1 200 OK!', $response)) {
     p('Found 200 OK, checking for our email, in profile form');
@@ -175,10 +183,10 @@ function grab_all() {
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
-    p('failed');
+    p(' failed');
     return false;
   }
-  p('success');
+  p(' success');
   dump_response_to_file($response);
   if (preg_match('!^HTTP/1.1 200 OK!', $response)) {
     p('Found 200 OK, checking cast links');
@@ -186,10 +194,10 @@ function grab_all() {
     $yup = preg_match_all('!https://laracasts.com/(lessons/[^"]+)!', $response, $matches);
     $yup2 = preg_match_all('!https://laracasts.com/(series/[^"]+)!', $response, $matches2);
 
-    if ($yup && $yup2) {
+    if ($yup || $yup2) {
       $casts=array();
       foreach($matches[1] as $i => $match) {
-        // if ($match<>'lessons/complete') $casts[]=$match;
+        if ($match<>'lessons/complete') $casts[]=$match;
       }
       foreach($matches2[1] as $i => $match) {
         if (strpos($match, 'episodes')!==false) $casts[]=$match;
@@ -215,10 +223,10 @@ function get_lesson_id($cast) {
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
-    p('failed');
+    p(' failed');
     return false;
   }
-  p('success');
+  p(' success');
   dump_response_to_file($response);
   if (preg_match('!^HTTP/1.1 200 OK!', $response)) {
     p('Found 200 OK, checking cast links');
@@ -241,16 +249,23 @@ function get_download_url($lesson_id) {
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
-    p('failed');
+    p(' failed');
     return false;
   }
-  p('success');
+  p(' success');
   dump_response_to_file($response);
   if (preg_match('!^HTTP/1.1 302 Found!', $response)) {
     p('Found 302 Found, checking for Location again');
     $matches=array();
     if (preg_match('!Location: (.*)!', $response, $matches)) {
-      $download_url = $matches[1];
+      $download_url = trim($matches[1]);
+      if ($download_url === 'https://laracasts.com/admin/subscription/plan') {
+        p('Lession requires subscription');
+        echo LD_NL;
+        p(' exiting script, cannot download with a subscription');
+        die;
+        return false;
+      }
       p('Lesson ID for id=' . $lesson_id .' url is ' . $download_url);
       return trim($download_url);
     }
@@ -274,7 +289,7 @@ function download_from_vimeo($out_file, $url) {
  * Outputs message based on debug setting
  */
 function p ($message, $nonewline = 0) {
-  print $message . ($nonewline ? '' : '<br><br>'.PHP_EOL);
+  print $message . ($nonewline ? '' : LD_NL);
 }
 function dump_response_to_file($response) {
   if (!LD_DEBUG) return;
