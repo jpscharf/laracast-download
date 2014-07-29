@@ -27,7 +27,7 @@ PHP with curl and command line wget
 - ~~Get movie download link~~
 - ~~Download~~
 - ~~Download only new videos~~
-- Add tag options
+- ~~Download series and lessons~~
 
 ### Warnings
 

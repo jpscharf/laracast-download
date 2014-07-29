@@ -58,7 +58,22 @@ p('Grab list from /all');
 $casts = grab_all();
 if ($casts === false) die('Failed to grab all casts'.PHP_EOL);
 
-$count = count(array_diff($casts, $existing));
+// Find existing casts and unset them
+// this is a bit ghetto, but who has the time
+$casts_tmp = array();
+$pre_count = count($casts);
+foreach($casts as $cast) {
+  $cast_normalized = str_replace(array('series/', 'lessons/'), array('', ''), $cast);
+  $cast_normalized = str_replace('/', '_', $cast_normalized);
+  if (!in_array($cast_normalized, $existing)) {
+    $casts_tmp[] = $cast;
+  }
+}
+$casts = $casts_tmp;
+$count = count($casts);
+if ($pre_count != $count) {
+  p('Already downloaded ' . ($pre_count - $count) . ' casts');
+}
 if (!$count) {
   p('Nothing new to download, dying');
   die;
@@ -154,7 +169,6 @@ function check_session($email) {
   global $ch;
   p('Calling /admin/profile ... ', 1);
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/admin/profile');
-  #curl_setopt($ch, CURLOPT_URL, 'http://localhost:8000/user/login');
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
@@ -219,6 +233,7 @@ function get_video_id($cast) {
   global $ch;
   p('Calling ' . $cast . ' ... ', 1);
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/' . $cast);
+  curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
