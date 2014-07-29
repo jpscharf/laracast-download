@@ -66,29 +66,28 @@ if (!$count) {
 p('Found ' . $count . ' casts');
 
 $padding = 4;
-$lesson_ids = array();
 foreach ($casts as $cast) {
   echo LD_NL . LD_NL;
-  $lesson = get_lesson_id($cast);
-  if (substr_count($lesson, '?')) {
-    $lesson_id = substr($lesson, 0, strpos($lesson, '?'));
+  $video = get_video_id($cast);
+  if (substr_count($video, '?')) {
+    $video_id = substr($video, 0, strpos($video, '?'));
   } else {
-    $lesson_id = $lesson;
+    $video_id = $video;
   }
-  if ($lesson_id === false) {
-    p('Failed to get lesson id for cast=' . $cast);
+  if ($video_id === false) {
+    p('Failed to get video id for cast=' . $cast);
     continue;
   }
   $out_name = str_replace(array('series/', 'lessons/'), array('', ''), $cast);
-  $out_file = $directory . '/' . str_pad($lesson_id, $padding, '0', STR_PAD_LEFT) . '_' . str_replace('/', '_', $out_name) . '.mp4';
+  $out_file = $directory . '/' . str_pad($video_id, $padding, '0', STR_PAD_LEFT) . '_' . str_replace('/', '_', $out_name) . '.mp4';
   if (file_exists($out_file)) {
     p('File exists for out_file=' . $out_file . ', skipping');
     continue;
   }
-  p('Checking first url before redirection : https://laracasts.com/downloads/' . $lesson);
-  $url = get_download_url('https://laracasts.com/downloads/' . $lesson);
+  p('Checking first url before redirection : https://laracasts.com/downloads/' . $video);
+  $url = get_download_url('https://laracasts.com/downloads/' . $video);
   if ($url === false) {
-    p('Could not get download url for lession_id=' . $lesson_id);
+    p('Could not get download url for video_id=' . $video_id);
     continue;
   }
   p('Downloading ' . $url . ' to ' . $out_file);
@@ -97,7 +96,7 @@ foreach ($casts as $cast) {
     p('Failed to get url=' . $url);
     continue;
   }
-  p('Success, got lesson_id=' . $lesson_id . ', cast=' . $cast);
+  p('Success, got video_id=' . $video_id . ', cast=' . $cast);
 }
 
 #functions
@@ -197,7 +196,7 @@ function grab_all() {
     if ($yup || $yup2) {
       $casts=array();
       foreach($matches[1] as $i => $match) {
-        if ($match<>'lessons/complete') $casts[]=$match;
+        if ($match<>'lessons/complete' && substr_count($match, '/save')<1) $casts[]=$match;
       }
       foreach($matches2[1] as $i => $match) {
         if (strpos($match, 'episodes')!==false) $casts[]=$match;
@@ -216,7 +215,7 @@ function grab_all() {
 /*
  * Get download url from /lessons/ or /series/
  */
-function get_lesson_id($cast) {
+function get_video_id($cast) {
   global $ch;
   p('Calling ' . $cast . ' ... ', 1);
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/' . $cast);
@@ -232,9 +231,9 @@ function get_lesson_id($cast) {
     p('Found 200 OK, checking cast links');
     $matches=array();
     if (preg_match('!/downloads/([0-9a-z\?\=]+)!', $response, $matches)) {
-      $lesson_id = $matches[1];
-      p('Lesson ID for cast=' . $cast .' is ' . $lesson_id);
-      return $lesson_id;
+      $video_id = $matches[1];
+      p('Video ID for cast=' . $cast .' is ' . $video_id);
+      return $video_id;
     }
   }
   return false;
@@ -242,10 +241,10 @@ function get_lesson_id($cast) {
 /*
  * Get the download URL
  */
-function get_download_url($lesson_id) {
+function get_download_url($video) {
   global $ch;
-  p('Calling ' . $lesson_id . ' ... ', 1);
-  curl_setopt($ch, CURLOPT_URL, $lesson_id);
+  p('Calling ' . $video . ' ... ', 1);
+  curl_setopt($ch, CURLOPT_URL, $video);
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
@@ -266,7 +265,7 @@ function get_download_url($lesson_id) {
         die;
         return false;
       }
-      p('Lesson ID for id=' . $lesson_id .' url is ' . $download_url);
+      p('Download URL for video=' . $video .' url is ' . $download_url);
       return trim($download_url);
     }
   }
