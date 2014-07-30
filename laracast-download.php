@@ -167,8 +167,8 @@ function do_auth($email, $password) {
  */
 function check_session($email) {
   global $ch;
-  p('Calling /admin/profile ... ', 1);
-  curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/admin/profile');
+  p('Calling /admin/account ... ', 1);
+  curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/admin/account');
   $response=curl_exec($ch);
   if ($response===false) {
     curl_close($ch);
