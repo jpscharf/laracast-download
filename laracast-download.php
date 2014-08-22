@@ -1,4 +1,7 @@
 <?php
+//
+// TODO
+// Clean up the D.R.Y. all over (around curl_exec)
 
 set_time_limit(0); // infinity
 define('LD_DEBUG', false);
@@ -10,7 +13,7 @@ define('LD_NL', LD_CLI ? PHP_EOL : '<br>');
 if (!file_exists(LD_CONFIG_FILE)) die('No config file found.'.PHP_EOL);
 
 // Kill the cookie jar
-#if (file_exists(LD_CONFIG_FILE)) unlink(LD_COOKIEJAR);
+//if (file_exists(LD_CONFIG_FILE)) unlink(LD_COOKIEJAR);
 
 require LD_CONFIG_FILE;
 
@@ -114,7 +117,8 @@ foreach ($casts as $cast) {
   p('Success, got video_id=' . $video_id . ', cast=' . $cast);
 }
 
-#functions
+//functions
+
 /*
  * Authenticates by first call /login, we need to establish
  * cookie jar for session
@@ -127,6 +131,7 @@ function do_auth($email, $password) {
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/login');
   $response=curl_exec($ch);
   if ($response===false) {
+    p(LD_NL . 'curl_error is ' . curl_error($ch));
     curl_close($ch);
     p(' failed');
     return false;
@@ -140,6 +145,7 @@ function do_auth($email, $password) {
   curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(array('email' => $email, 'password' => $password, 'remember' => 'on')));
   $response=curl_exec($ch);
   if ($response===false) {
+    p(LD_NL . 'curl_error is ' . curl_error($ch));
     curl_close($ch);
     p(' failed');
     return false;
@@ -171,6 +177,7 @@ function check_session($email) {
   curl_setopt($ch, CURLOPT_URL, 'https://laracasts.com/admin/account');
   $response=curl_exec($ch);
   if ($response===false) {
+    p(LD_NL . 'curl_error is ' . curl_error($ch));
     curl_close($ch);
     p(' failed');
     return false;
@@ -195,6 +202,7 @@ function grab_all() {
   curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
   $response=curl_exec($ch);
   if ($response===false) {
+    p(LD_NL . 'curl_error is ' . curl_error($ch));
     curl_close($ch);
     p(' failed');
     return false;
@@ -236,6 +244,7 @@ function get_video_id($cast) {
   curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
   $response=curl_exec($ch);
   if ($response===false) {
+    p(LD_NL . 'curl_error is ' . curl_error($ch));
     curl_close($ch);
     p(' failed');
     return false;
@@ -262,6 +271,7 @@ function get_download_url($video) {
   curl_setopt($ch, CURLOPT_URL, $video);
   $response=curl_exec($ch);
   if ($response===false) {
+    p(LD_NL . 'curl_error is ' . curl_error($ch));
     curl_close($ch);
     p(' failed');
     return false;
