@@ -108,6 +108,13 @@ foreach ($casts as $cast) {
     p('Could not get download url for video_id=' . $video_id);
     continue;
   }
+
+  // Cleanup leading slashes in url
+  if ( substr ( $url, 0, 2 ) == "//" )
+  {
+    $url = substr ( $url, 2, strlen( $url ) - 2 );
+  }	
+
   p('Downloading ' . $url . ' to ' . $out_file);
   $result = download_from_vimeo($out_file, $url);
   if ($result===false) {
