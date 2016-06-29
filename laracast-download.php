@@ -161,7 +161,7 @@ function do_auth($email, $password) {
     p(' success, got 302 from /sessions, looking for Location');
     $matches = array();
     if (preg_match('/^Location: (.*)/', $response, $matches)) {
-      $Location = $matches[1];
+      $location = $matches[1];
       p('Success, got location=' . $location);
       curl_setopt($ch, CURLOPT_POST, 0);
       curl_setopt($ch, CURLOPT_POSTFIELDS, null);
